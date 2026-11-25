@@ -10,10 +10,11 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   register as registerRequest,
+  updateProfile as updateProfileRequest,
   type LoginInput,
   type RegisterInput,
 } from '@/api/auth'
-import type { AuthUser } from '@/types/api'
+import type { AuthUser, UserProfileInput } from '@/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(getStoredToken())
@@ -80,6 +81,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateProfile(input: UserProfileInput): Promise<void> {
+    loading.value = true
+    error.value = ''
+    try {
+      user.value = await updateProfileRequest(input)
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : '个人资料保存失败'
+      throw cause
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout(): Promise<void> {
     try {
       if (token.value) await logoutRequest()
@@ -101,6 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
     bootstrap,
     login,
     register,
+    updateProfile,
     logout,
   }
 })

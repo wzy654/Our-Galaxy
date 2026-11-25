@@ -34,7 +34,7 @@ async function submit() {
   try {
     await auth.register(form)
     ElMessage.success('账号创建成功，欢迎来到我们的宇宙')
-    router.push('/space')
+    router.push('/memories')
   } catch (cause) {
     ElMessage.error(cause instanceof Error ? cause.message : '注册失败')
   } finally {

@@ -1,23 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import UserAvatar from '@/components/UserAvatar.vue'
+import UserProfileDialog from '@/components/UserProfileDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
-const route = useRoute()
-const navigation = computed(() => auth.isAuthenticated
-  ? [
-      { label: '宇宙首页', to: '/', mobileHidden: true },
-      { label: '我们的空间', to: '/space' },
-      { label: '共同回忆', to: '/memories' },
-    ]
-  : [
-      { label: '宇宙首页', to: '/', mobileHidden: true },
-      { label: '登录', to: '/login' },
-      { label: '注册', to: '/register' },
-    ])
+const profileOpen = ref(false)
 
 async function handleLogout() {
   try {
@@ -40,18 +31,15 @@ async function handleLogout() {
       </span>
     </RouterLink>
 
-    <div class="header-actions">
-      <nav v-if="route.name !== 'home'" class="main-nav" aria-label="主导航">
-        <RouterLink v-for="item in navigation" :key="item.to" class="nav-link" :class="{ 'home-link': item.mobileHidden }" :to="item.to">
-          {{ item.label }}
-        </RouterLink>
-      </nav>
-      <div v-if="auth.isAuthenticated" class="user-actions">
-        <span>{{ auth.user?.nickname }}</span>
-        <button type="button" @click="handleLogout">退出</button>
-      </div>
+    <div v-if="auth.isAuthenticated" class="user-actions">
+      <button type="button" class="profile-trigger" aria-label="编辑个人资料" title="个人资料" @click="profileOpen = true">
+        <UserAvatar :file-id="auth.user?.avatarFileId || null" :name="auth.user?.nickname || '星'" :size="30" />
+        <span class="profile-name">{{ auth.user?.nickname }}</span>
+      </button>
+      <button type="button" @click="handleLogout">退出</button>
     </div>
   </header>
+  <UserProfileDialog v-model="profileOpen" />
 </template>
 
 <style scoped lang="scss">
@@ -140,53 +128,9 @@ async function handleLogout() {
   letter-spacing: 0.34em;
 }
 
-.main-nav {
-  display: flex;
-  gap: 30px;
-}
-
-.nav-link {
-  position: relative;
-  padding: 12px 0;
-  color: #858da3;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-decoration: none;
-  transition: color 220ms ease;
-}
-
-.nav-link::after {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  width: 14px;
-  height: 1px;
-  background: #d8bb80;
-  content: '';
-  opacity: 0;
-  transform: translate(-50%, 3px);
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-
-.nav-link:hover,
-.nav-link.router-link-exact-active {
-  color: #eadaba;
-}
-
-.nav-link:hover::after,
-.nav-link.router-link-exact-active::after {
-  opacity: 0.85;
-  transform: translate(-50%, 0);
-}
-
-.header-actions,
 .user-actions {
   display: flex;
   align-items: center;
-}
-
-.header-actions {
-  gap: 24px;
 }
 
 .user-actions {
@@ -211,19 +155,22 @@ async function handleLogout() {
   color: #d8c9ad;
 }
 
+.user-actions .profile-trigger {
+  display: inline-flex;
+  padding: 3px 8px 3px 3px;
+  align-items: center;
+  border-color: transparent;
+  border-radius: 999px;
+  gap: 8px;
+  color: #b1b8c8;
+}
+
 @media (max-width: 768px) {
   .app-header {
     width: calc(100% - 40px);
     min-height: 76px;
   }
 
-  .header-actions {
-    gap: 16px;
-  }
-
-  .main-nav {
-    gap: 20px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -250,26 +197,12 @@ async function handleLogout() {
     letter-spacing: 0.18em;
   }
 
-  .brand-copy small,
-  .home-link {
+  .brand-copy small {
     display: none;
   }
 
-  .header-actions {
-    gap: 12px;
-  }
-
-  .main-nav {
-    gap: 14px;
-  }
-
-  .user-actions span {
+  .profile-name {
     display: none;
-  }
-
-  .nav-link {
-    font-size: 10px;
-    letter-spacing: 0.04em;
   }
 }
 </style>

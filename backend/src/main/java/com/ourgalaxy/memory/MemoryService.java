@@ -129,6 +129,9 @@ public class MemoryService {
         memory.setContent(trimToNull(request.content()));
         memory.setEventDate(request.eventDate());
         memory.setLocationName(trimToNull(request.locationName()));
+        if ((request.latitude() == null) != (request.longitude() == null)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "纬度和经度必须同时填写");
+        }
         memory.setLatitude(request.latitude());
         memory.setLongitude(request.longitude());
         memory.setStarType(request.starType() == null || request.starType().isBlank()

@@ -27,13 +27,7 @@ export interface MemoryGalaxyHandle {
   updateMemories: (memories: Memory[]) => void
   setSelected: (memoryId: number | null) => void
   resetView: () => void
-  zoom: (factor: number) => void
   dispose: () => void
-}
-
-interface StarLabel {
-  button: HTMLButtonElement
-  index: number
 }
 
 const MEMORY_VERTEX_SHADER = `
@@ -214,7 +208,6 @@ function disposeObject(object: THREE.Object3D) {
 
 export function mountMemoryGalaxy(
   host: HTMLDivElement,
-  labelHost: HTMLDivElement,
   initialMemories: Memory[],
   options: MemoryGalaxyOptions,
 ): MemoryGalaxyHandle {
@@ -332,61 +325,15 @@ export function mountMemoryGalaxy(
   let elapsed = 0
   let ready = false
   let rotateTimer: number | null = null
-  const labels = new Map<number, StarLabel>()
   const raycaster = new THREE.Raycaster()
   raycaster.params.Points.threshold = 0.72
   const pointer = new THREE.Vector2()
-  const projected = new THREE.Vector3()
   const pointerStart = new THREE.Vector2()
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotion = motionQuery.matches
   controls.autoRotate = !reducedMotion
   controls.enableDamping = !reducedMotion
   scene.add(memoryGroup)
-
-  function clearLabels() {
-    for (const label of labels.values()) label.button.remove()
-    labels.clear()
-  }
-
-  function createLabel(memory: Memory, index: number) {
-    if (labels.has(memory.id)) return
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'memory-star-label'
-    button.setAttribute('aria-label', `打开回忆：${memory.title}`)
-
-    const title = document.createElement('span')
-    title.className = 'label-title'
-    title.textContent = memory.title
-    const date = document.createElement('small')
-    date.textContent = memory.eventDate
-    button.append(title, date)
-    button.addEventListener('click', (event) => {
-      event.stopPropagation()
-      options.onSelect(memory.id)
-    })
-    labelHost.appendChild(button)
-    labels.set(memory.id, { button, index })
-  }
-
-  function updateLabels() {
-    if (!memoryPoints) return
-    const positions = memoryPoints.geometry.getAttribute('position') as THREE.BufferAttribute
-    for (const label of labels.values()) {
-      projected.fromBufferAttribute(positions, label.index)
-      projected.project(camera)
-      const visible = projected.z > -1 && projected.z < 1 && Math.abs(projected.x) < 1.08 && Math.abs(projected.y) < 1.08
-      label.button.hidden = !visible
-      if (!visible) continue
-      const x = (projected.x * 0.5 + 0.5) * host.clientWidth
-      const y = (-projected.y * 0.5 + 0.5) * host.clientHeight
-      const depth = THREE.MathUtils.clamp(1 - (projected.z + 1) * 0.5, 0, 1)
-      label.button.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
-      label.button.style.opacity = `${0.42 + depth * 0.5}`
-      label.button.style.zIndex = `${Math.round(depth * 10)}`
-    }
-  }
 
   function renderFrame() {
     if (disposed || document.hidden) return
@@ -410,7 +357,6 @@ export function mountMemoryGalaxy(
       planet.group.scale.setScalar(selectedScale)
     }
     renderer.render(scene, camera)
-    updateLabels()
     if (!ready) {
       ready = true
       options.onReady?.()
@@ -554,7 +500,6 @@ export function mountMemoryGalaxy(
     disposeObject(memoryGroup)
     memoryGroup = new THREE.Group()
     scene.add(memoryGroup)
-    clearLabels()
     memories = nextMemories
     memoryPoints = null
     memoryMaterial = null
@@ -640,10 +585,7 @@ export function mountMemoryGalaxy(
       memoryGroup.add(new THREE.LineSegments(lineGeometry, lineMaterial))
     }
 
-    const labelLimit = compact ? 8 : 18
-    const stride = Math.max(1, Math.ceil(memories.length / labelLimit))
     memories.forEach((memory, index) => {
-      if (index % stride === 0) createLabel(memory, index)
       createMemoryPlanet(memory, index, positions, loadGeneration)
     })
 
@@ -653,7 +595,6 @@ export function mountMemoryGalaxy(
 
   function setSelected(memoryId: number | null) {
     selectedId = memoryId
-    for (const label of labels.values()) label.button.classList.toggle('is-selected', memories[label.index]?.id === memoryId)
 
     if (!memoryPoints || memoryId === null) {
       selectionSprite.visible = false
@@ -673,7 +614,6 @@ export function mountMemoryGalaxy(
       return
     }
 
-    createLabel(memories[index], index)
     const attribute = memoryPoints.geometry.getAttribute('aSelected') as THREE.BufferAttribute
     attribute.array.fill(0)
     attribute.setX(index, 1)
@@ -681,7 +621,6 @@ export function mountMemoryGalaxy(
     const position = memoryPoints.geometry.getAttribute('position') as THREE.BufferAttribute
     selectionSprite.position.fromBufferAttribute(position, index)
     selectionSprite.visible = true
-    for (const label of labels.values()) label.button.classList.toggle('is-selected', label.index === index)
     renderFrame()
   }
 
@@ -732,15 +671,6 @@ export function mountMemoryGalaxy(
     renderFrame()
   }
 
-  function zoom(factor: number) {
-    const offset = camera.position.clone().sub(controls.target)
-    const distance = THREE.MathUtils.clamp(offset.length() * factor, controls.minDistance, controls.maxDistance)
-    offset.setLength(distance)
-    camera.position.copy(controls.target).add(offset)
-    controls.update()
-    renderFrame()
-  }
-
   function dispose() {
     if (disposed) return
     disposed = true
@@ -748,7 +678,6 @@ export function mountMemoryGalaxy(
     if (rotateTimer !== null) window.clearTimeout(rotateTimer)
     resizeObserver.disconnect()
     controls.dispose()
-    clearLabels()
     window.removeEventListener('resize', resize)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
     motionQuery.removeEventListener('change', handleMotionChange)
@@ -790,7 +719,6 @@ export function mountMemoryGalaxy(
     updateMemories: rebuildMemories,
     setSelected,
     resetView,
-    zoom,
     dispose,
   }
 }

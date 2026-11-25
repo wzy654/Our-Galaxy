@@ -30,7 +30,7 @@ async function submit() {
   try {
     await auth.login(form)
     ElMessage.success('欢迎回到我们的宇宙')
-    router.push(String(route.query.redirect || '/space'))
+    router.push(String(route.query.redirect || '/memories'))
   } catch (cause) {
     ElMessage.error(cause instanceof Error ? cause.message : '登录失败')
   } finally {

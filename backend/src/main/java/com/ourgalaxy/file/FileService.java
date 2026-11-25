@@ -33,6 +33,32 @@ public class FileService {
         FileObject file = new FileObject();
         file.setCoupleId(coupleId);
         file.setUploaderId(userId);
+        file.setPurpose("MEMORY");
+        file.setStorageProvider("LOCAL");
+        file.setStorageKey(storedFile.storageKey());
+        file.setOriginalName(safeOriginalName(multipartFile.getOriginalFilename()));
+        file.setMimeType(storedFile.mimeType());
+        file.setSizeBytes(storedFile.sizeBytes());
+        file.setChecksumSha256(storedFile.checksumSha256());
+        file.setWidth(storedFile.width());
+        file.setHeight(storedFile.height());
+
+        try {
+            fileMapper.insert(file);
+        } catch (RuntimeException exception) {
+            localStorageService.deleteQuietly(storedFile.storageKey());
+            throw exception;
+        }
+        return toVO(file);
+    }
+
+    @Transactional
+    public FileVO uploadAvatar(Long userId, MultipartFile multipartFile) {
+        LocalStorageService.StoredFile storedFile = localStorageService.storePersonal(multipartFile, userId);
+
+        FileObject file = new FileObject();
+        file.setUploaderId(userId);
+        file.setPurpose("AVATAR");
         file.setStorageProvider("LOCAL");
         file.setStorageKey(storedFile.storageKey());
         file.setOriginalName(safeOriginalName(multipartFile.getOriginalFilename()));
@@ -52,13 +78,21 @@ public class FileService {
     }
 
     public AuthorizedFile getAuthorizedFile(Long userId, Long fileId) {
-        Long coupleId = spaceService.currentCoupleId(userId);
-        spaceService.requireMember(userId, coupleId);
         FileObject file = fileMapper.selectOne(Wrappers.<FileObject>lambdaQuery()
-                .eq(FileObject::getId, fileId)
-                .eq(FileObject::getCoupleId, coupleId));
+                .eq(FileObject::getId, fileId));
         if (file == null) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "文件不存在或无权访问");
+        }
+        if ("AVATAR".equals(file.getPurpose())) {
+            if (!userId.equals(file.getUploaderId())) {
+                throw new BusinessException(HttpStatus.NOT_FOUND, "文件不存在或无权访问");
+            }
+        } else {
+            Long coupleId = spaceService.currentCoupleId(userId);
+            spaceService.requireMember(userId, coupleId);
+            if (!coupleId.equals(file.getCoupleId())) {
+                throw new BusinessException(HttpStatus.NOT_FOUND, "文件不存在或无权访问");
+            }
         }
         return new AuthorizedFile(file, localStorageService.load(file.getStorageKey()));
     }
@@ -66,9 +100,22 @@ public class FileService {
     public FileObject requireFile(Long coupleId, Long fileId) {
         FileObject file = fileMapper.selectOne(Wrappers.<FileObject>lambdaQuery()
                 .eq(FileObject::getId, fileId)
-                .eq(FileObject::getCoupleId, coupleId));
+                .eq(FileObject::getCoupleId, coupleId)
+                .eq(FileObject::getPurpose, "MEMORY"));
         if (file == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "图片不存在或不属于当前空间");
+        }
+        return file;
+    }
+
+    public FileObject requireAvatar(Long userId, Long fileId) {
+        FileObject file = fileMapper.selectOne(Wrappers.<FileObject>lambdaQuery()
+                .eq(FileObject::getId, fileId)
+                .eq(FileObject::getUploaderId, userId)
+                .eq(FileObject::getPurpose, "AVATAR")
+                .isNull(FileObject::getCoupleId));
+        if (file == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "头像不存在或不属于当前用户");
         }
         return file;
     }

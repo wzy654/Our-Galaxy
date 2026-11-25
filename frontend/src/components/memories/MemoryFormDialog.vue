@@ -92,12 +92,14 @@ async function handleFiles(event: Event) {
         ElMessage.error(`${file.name} 超过 10MB`)
         continue
       }
-      const uploaded = await uploadImage(file)
-      selectedFiles.value.push(uploaded)
-      form.mediaFileIds.push(uploaded.id)
+      try {
+        const uploaded = await uploadImage(file)
+        selectedFiles.value.push(uploaded)
+        form.mediaFileIds.push(uploaded.id)
+      } catch (cause) {
+        ElMessage.error(cause instanceof Error ? cause.message : `${file.name} 上传失败`)
+      }
     }
-  } catch (cause) {
-    ElMessage.error(cause instanceof Error ? cause.message : '图片上传失败')
   } finally {
     uploading.value = false
   }
@@ -109,6 +111,7 @@ function removeFile(index: number) {
 }
 
 async function save() {
+  if (submitting.value || uploading.value) return
   if (!form.title.trim()) {
     ElMessage.warning('请填写回忆标题')
     return
@@ -117,11 +120,44 @@ async function save() {
     ElMessage.warning('请选择回忆日期')
     return
   }
-  form.tags = tagsText.value
+  const latitude = form.latitude === null || String(form.latitude).trim() === ''
+    ? null
+    : Number(form.latitude)
+  const longitude = form.longitude === null || String(form.longitude).trim() === ''
+    ? null
+    : Number(form.longitude)
+  if ((latitude !== null && !Number.isFinite(latitude))
+    || (longitude !== null && !Number.isFinite(longitude))) {
+    ElMessage.warning('请输入有效的经纬度')
+    return
+  }
+  if ((latitude === null) !== (longitude === null)) {
+    ElMessage.warning('纬度和经度需要同时填写')
+    return
+  }
+  if (latitude !== null && (latitude < -90 || latitude > 90)) {
+    ElMessage.warning('纬度必须在 -90 到 90 之间')
+    return
+  }
+  if (longitude !== null && (longitude < -180 || longitude > 180)) {
+    ElMessage.warning('经度必须在 -180 到 180 之间')
+    return
+  }
+  form.latitude = latitude
+  form.longitude = longitude
+  const tags = tagsText.value
     .split(/[,，\s]+/)
     .map((tag) => tag.trim())
     .filter(Boolean)
-    .slice(0, 10)
+  if (tags.length > 10) {
+    ElMessage.warning('每段回忆最多添加 10 个标签')
+    return
+  }
+  if (tags.some((tag) => tag.length > 50)) {
+    ElMessage.warning('单个标签不能超过 50 个字符')
+    return
+  }
+  form.tags = tags
 
   submitting.value = true
   try {

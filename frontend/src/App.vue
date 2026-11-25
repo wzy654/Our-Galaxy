@@ -13,8 +13,8 @@ const isMemories = computed(() => route.name === 'memories')
 <template>
   <div class="app-shell" :class="{ 'is-galaxy': isMemories }">
     <CosmicBackdrop v-if="isHome" />
-    <div v-else class="cosmic-background" aria-hidden="true" />
-    <AppHeader />
+    <div v-else-if="!isMemories" class="cosmic-background" aria-hidden="true" />
+    <AppHeader v-if="!isMemories" />
     <main class="app-main">
       <RouterView />
     </main>
@@ -35,18 +35,13 @@ const isMemories = computed(() => route.name === 'memories')
 }
 
 .app-shell.is-galaxy {
-  background: #040711;
-}
-
-.app-shell.is-galaxy :deep(.app-header) {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  height: 100svh;
+  overflow: hidden;
+  background: #03050b;
 }
 
 .app-shell.is-galaxy .app-main {
-  z-index: 2;
+  height: 100%;
 }
 
 .cosmic-background {

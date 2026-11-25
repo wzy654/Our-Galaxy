@@ -9,6 +9,7 @@ const props = defineProps<{
 
 const imageUrl = ref('')
 const error = ref('')
+let loadGeneration = 0
 
 function revoke() {
   if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
@@ -16,19 +17,26 @@ function revoke() {
 }
 
 async function load() {
+  const generation = ++loadGeneration
   revoke()
   error.value = ''
   try {
     const blob = await fetchFileBlob(props.fileId)
+    if (generation !== loadGeneration) return
     imageUrl.value = URL.createObjectURL(blob)
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '图片加载失败'
+    if (generation === loadGeneration) {
+      error.value = cause instanceof Error ? cause.message : '图片加载失败'
+    }
   }
 }
 
 watch(() => props.fileId, load)
 onMounted(load)
-onBeforeUnmount(revoke)
+onBeforeUnmount(() => {
+  loadGeneration += 1
+  revoke()
+})
 </script>
 
 <template>

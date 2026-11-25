@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import ArchiveSection from '@/components/home/ArchiveSection.vue'
-import FeatureSection from '@/components/home/FeatureSection.vue'
 import HeroSection from '@/components/home/HeroSection.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useHomeStore } from '@/stores/home'
@@ -42,7 +41,6 @@ watch(() => auth.isAuthenticated, () => {
       :error="home.error"
       @retry="home.load"
     />
-    <FeatureSection />
   </section>
 </template>
 

@@ -2,7 +2,7 @@
 
 专属于两个人的私人数字记忆空间。核心理念：**记录过去，陪伴现在，创造未来。**
 
-当前已完成 **Phase 1：账号、空间与共同回忆 MVP**，并完成电影感宇宙首页、穿梭过渡和沉浸式三维回忆星图。前后端可连接真实 MySQL 8 与 Redis，支持注册登录、JWT 退出失效、情侣空间邀请、回忆 CRUD、标签和受控图片上传；三维星图支持回忆星球旋转、搜索索引、详情查看与原有增删改查。时间胶囊、AI、地图与年度报告尚未实现。
+当前已完成 **Phase 1：账号、空间与共同回忆 MVP**，并完成电影感宇宙首页、穿梭过渡和沉浸式三维回忆星海。前后端可连接真实 MySQL 8 与 Redis，支持注册登录、JWT 退出失效、情侣空间邀请、回忆 CRUD、标签、受控图片上传、个人昵称修改和头像上传；前端仅保留首页与纯沉浸式三维星海，空间创建、加入、邀请和个人资料收进轻量弹窗。时间胶囊、AI、地图与年度报告尚未实现。
 
 ## 技术架构
 
@@ -10,7 +10,7 @@
 - 后端：Java 17、Spring Boot 3、Maven Wrapper、MyBatis Plus、Spring Security、JWT、Flyway
 - 数据：MySQL 8、Redis
 - 接口：统一 `/api` 前缀、`ApiResponse<T>` 统一响应、SpringDoc OpenAPI
-- 文件：本地存储、真实图片内容校验、空间成员鉴权下载
+- 文件：本地存储、真实图片内容校验、空间成员鉴权下载；头像使用个人隔离路径，仅本人可读取和设置
 - 部署：Docker Compose 为可选开发方式；当前验收使用本机便携式 MySQL/Redis，不依赖 Docker
 
 ## 目录结构
@@ -44,7 +44,7 @@ Our Galaxy/
 │   │   ├── router/             # 路由与认证守卫
 │   │   ├── stores/             # Pinia 状态
 │   │   ├── types/
-│   │   └── views/              # 首页、认证、空间、回忆
+│   │   └── views/              # 首页、认证、回忆
 │   ├── Dockerfile
 │   ├── package.json
 │   └── vite.config.ts
@@ -96,7 +96,7 @@ set +a
 
 ## 本机 MySQL 与 Redis
 
-本机便携版已安装在 `.local/`，当前数据目录分别为 `.local/mysql/data/` 和 `.local/redis/data/`。MySQL 绑定 `127.0.0.1:3306`，Redis 绑定 `127.0.0.1:6379`；应用库 `our_galaxy` 与测试库 `our_galaxy_test` 已创建，Flyway V1 已执行成功。
+本机便携版已安装在 `.local/`，当前数据目录分别为 `.local/mysql/data/` 和 `.local/redis/data/`。MySQL 绑定 `127.0.0.1:3306`，Redis 绑定 `127.0.0.1:6379`；应用库 `our_galaxy` 与测试库 `our_galaxy_test` 已创建，Flyway 按版本自动执行。
 
 这些进程目前是开发会话中的后台进程，不是 Windows 服务，重启电脑后需要重新启动。
 
@@ -192,7 +192,8 @@ docker compose logs -f backend
 - `POST /api/spaces/invitations`、`POST /api/spaces/join`
 - `GET/POST /api/memories`
 - `GET/PUT/DELETE /api/memories/{id}`
-- `POST /api/files`、`GET /api/files/{id}`
+- `POST /api/files`、`POST /api/files/avatar`、`GET /api/files/{id}`
+- `PUT /api/users/me`
 
 统一响应示例：
 
@@ -217,7 +218,9 @@ docker compose logs -f backend
 - 所有详情、修改、删除和文件查询都带当前空间条件。
 - 创建空间和加入空间使用用户行锁、空间行锁与邀请行锁，限制每个用户一个空间、每个空间最多两名成员。
 - 登录使用 Redis 限流；退出后将 token ID 写入 Redis 拒绝列表，原 token 立即失效。
-- 文件访问必须验证空间成员关系，前端使用 Authorization 请求获取 Blob，不把文件 URL 当作公开资源。
+- 回忆文件访问必须验证当前空间成员关系；头像文件使用 `purpose=AVATAR` 和 `couple_id=NULL`，仅上传者本人可读取和设置。
+- `purpose=MEMORY` 与 `purpose=AVATAR` 互斥：头像不能挂到回忆，回忆图片不能设为头像。
+- 前端使用 Authorization 请求获取 Blob，不把文件 URL 当作公开资源。
 - 图片仅支持 JPEG/PNG/GIF，校验真实文件内容、大小和像素数，物理文件名随机化。
 
 ## 编译与测试
@@ -248,27 +251,28 @@ npm run build
 ### Phase 1 验收记录（2026-11-25）
 
 - MySQL 8.0.44、Redis 8.10.3 本机启动及认证通过，Redis `PING` 返回 `PONG`。
-- Flyway V1 执行成功，共 13 张业务表。
-- `./mvnw -q test package`：3 个后端测试通过，0 失败、0 错误，可执行 JAR 打包成功。
+- Flyway V1、V2 执行成功，共 13 张业务表。
+- `./mvnw -q test package`：4 个后端测试通过，0 失败、0 错误，可执行 JAR 打包成功。
 - 真实 MySQL/Redis 集成测试覆盖注册登录、空间邀请加入、跨空间回忆和文件访问隔离、同空间共享、退出令牌失效。
-- 回忆编辑回归覆盖保留原关联、移除全部图片和标签、再次加入原图片和标签。
-- `npm test`：5 个前端测试通过；`npm run build`：类型检查和 Vite 构建成功。
-- 浏览器验证注册登录、空间创建与邀请、带图回忆创建、双成员共享、编辑移除与重新添加、认证路由守卫。
-- 524px 窄视口下回忆页移动端媒体查询生效，无横向溢出。
-- 页面控制台无错误或警告。构建存在约 1 MB 主 JS chunk 提示，不影响当前运行，后续再做路由级代码分割。
+- 回忆编辑回归覆盖保留原关联、移除全部图片和标签、再次加入原图片和标签；成功删除后详情返回 404，列表不再包含该回忆。
+- 个人资料回归覆盖无空间上传头像、昵称修改、清空头像、跨用户读取与设置拒绝，以及头像和回忆图片用途隔离。
+- `npm test`：16 个前端测试通过；`npm run build`：类型检查和 Vite 构建成功。
+- 浏览器验证注册登录、空间创建与邀请、带图回忆创建、双成员共享、编辑移除与重新添加、详情查询、成功删除、头像上传与资料持久化。
+- 375px 窄视口下回忆页与个人资料弹窗无横向溢出，页面控制台无错误或警告。
+- 构建存在约 1 MB 主 JS chunk 提示，不影响当前运行，后续再做路由级代码分割。
 
 ## 数据库迁移
 
 - 迁移目录：`backend/src/main/resources/db/migration`
-- 当前版本：`V1__init_schema.sql`
+- 当前版本：`V2__add_personal_avatars.sql`
 - 共 13 张表：`user`、`couple_space`、`couple_member`、`couple_invitation`、`memory_event`、`file_object`、`memory_media`、`memory_tag`、`capsule`、`ai_record`、`place_memory`、`place_media`、`annual_report`
-- 所有空间业务表包含 `couple_id`
+- 所有空间业务表包含 `couple_id`；个人头像文件是例外，`file_object.couple_id` 允许为 `NULL`，通过 `purpose` 和 `uploader_id` 限制所有权。
 - `DATETIME(6)` 统一为 UTC，`DATE` 表示不带时区的日历日期
 - 删除采用逻辑删除，关联恢复复用历史记录以避免唯一键冲突
 
 ## 当前边界与下一阶段
 
-Phase 1 不包含时间胶囊、AI 助手、地点地图、年度报告、未来模拟器和 Three.js 沉浸式首页。
+Phase 1 不包含时间胶囊、AI 助手、地点地图、年度报告和未来模拟器。
 
 下一步 Phase 2 将实现时间胶囊：
 
@@ -277,4 +281,4 @@ Phase 1 不包含时间胶囊、AI 助手、地点地图、年度报告、未来
 3. 到期开启、开启记录和空间隔离
 4. 未开启正文的跨空间与直接接口访问测试
 
-后续阶段再依次接入 AI、Love Map、Annual Report、Future Simulator 和完整 3D 星空体验。
+后续阶段再依次接入 AI、Love Map、Annual Report 和 Future Simulator。

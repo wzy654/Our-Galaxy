@@ -27,6 +27,11 @@ export interface TokenResponse {
   user: AuthUser
 }
 
+export interface UserProfileInput {
+  nickname: string
+  avatarFileId: number | null
+}
+
 export interface CoupleMember {
   userId: number
   nickname: string

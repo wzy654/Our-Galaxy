@@ -1,5 +1,5 @@
-import { get, post } from './http'
-import type { AuthUser, TokenResponse } from '@/types/api'
+import { get, post, put } from './http'
+import type { AuthUser, TokenResponse, UserProfileInput } from '@/types/api'
 
 export interface LoginInput {
   email: string
@@ -20,6 +20,10 @@ export function register(input: RegisterInput): Promise<AuthUser> {
 
 export function fetchMe(): Promise<AuthUser> {
   return get<AuthUser>('/auth/me')
+}
+
+export function updateProfile(input: UserProfileInput): Promise<AuthUser> {
+  return put<AuthUser>('/users/me', input)
 }
 
 export function logout(): Promise<void> {

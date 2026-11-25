@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -138,6 +139,18 @@ class SpaceIsolationIntegrationTest {
                 .andExpect(jsonPath("$.data.media.length()").value(1))
                 .andExpect(jsonPath("$.data.tags.length()").value(2));
 
+        mockMvc.perform(delete("/api/memories/{id}", memoryA)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerA)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/memories/{id}", memoryA)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerA)))
+                .andExpect(status().isNotFound());
+        listResult = mockMvc.perform(get("/api/memories")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerA)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertFalse(containsMemoryId(listResult, memoryA));
+
         mockMvc.perform(post("/api/spaces/invitations")
                         .header(HttpHeaders.AUTHORIZATION, bearer(ownerA)))
                 .andExpect(status().isConflict());
@@ -154,6 +167,98 @@ class SpaceIsolationIntegrationTest {
         mockMvc.perform(get("/api/auth/me")
                         .header(HttpHeaders.AUTHORIZATION, bearer(ownerA)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldManageOwnerOnlyAvatarAndProfileWithoutRequiringSpace() throws Exception {
+        String user = registerAndLogin("avatar-user");
+        String otherUser = registerAndLogin("avatar-other");
+        MockMultipartFile image = pngImage();
+
+        MvcResult avatarResult = mockMvc.perform(multipart("/api/files/avatar")
+                        .file(image)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mimeType").value("image/png"))
+                .andReturn();
+        long avatarId = readData(avatarResult).path("id").asLong();
+
+        mockMvc.perform(get("/api/files/{id}", avatarId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG));
+        mockMvc.perform(get("/api/files/{id}", avatarId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(otherUser)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "nickname", "新的昵称",
+                                "avatarFileId", avatarId
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("新的昵称"))
+                .andExpect(jsonPath("$.data.avatarFileId").value(avatarId));
+        mockMvc.perform(get("/api/auth/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("新的昵称"))
+                .andExpect(jsonPath("$.data.avatarFileId").value(avatarId));
+
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "nickname", "   ",
+                                "avatarFileId", avatarId
+                        ))))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(otherUser))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "nickname", "不能使用他人头像",
+                                "avatarFileId", avatarId
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        createSpace(user, "头像用户的空间");
+        mockMvc.perform(post("/api/memories")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(memoryRequest("头像不能作为回忆图片", avatarId))))
+                .andExpect(status().isBadRequest());
+
+        MvcResult memoryFileResult = mockMvc.perform(multipart("/api/files")
+                        .file(pngImage())
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memoryFileId = readData(memoryFileResult).path("id").asLong();
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(Map.of(
+                                "nickname", "新的昵称",
+                                "avatarFileId", memoryFileId
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        Map<String, Object> clearAvatarRequest = new HashMap<>();
+        clearAvatarRequest.put("nickname", "新的昵称");
+        clearAvatarRequest.put("avatarFileId", null);
+        mockMvc.perform(put("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(clearAvatarRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarFileId").doesNotExist());
+        mockMvc.perform(get("/api/auth/me")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatarFileId").doesNotExist());
     }
 
     private String registerAndLogin(String prefix) throws Exception {

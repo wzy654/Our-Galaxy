@@ -7,6 +7,12 @@ export function uploadImage(file: File): Promise<FileInfo> {
   return upload<FileInfo>('/files', formData)
 }
 
+export function uploadAvatar(file: File): Promise<FileInfo> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return upload<FileInfo>('/files/avatar', formData)
+}
+
 export async function fetchFileBlob(id: number): Promise<Blob> {
   const token = getStoredToken()
   const response = await fetch(`/api/files/${id}`, {

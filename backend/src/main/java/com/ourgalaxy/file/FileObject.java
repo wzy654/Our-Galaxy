@@ -14,6 +14,8 @@ public class FileObject extends BaseEntity {
 
     private Long uploaderId;
 
+    private String purpose;
+
     private String storageProvider;
 
     private String bucket;

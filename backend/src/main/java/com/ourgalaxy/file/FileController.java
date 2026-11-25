@@ -38,6 +38,14 @@ public class FileController {
         return ApiResponse.success(fileService.upload(principal.userId(), file));
     }
 
+    @PostMapping("/avatar")
+    public ApiResponse<FileVO> uploadAvatar(
+            @AuthenticationPrincipal JwtPrincipal principal,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ApiResponse.success(fileService.uploadAvatar(principal.userId(), file));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Resource> download(
             @AuthenticationPrincipal JwtPrincipal principal,

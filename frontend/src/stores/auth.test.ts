@@ -9,6 +9,7 @@ import {
   fetchMe,
   login,
   logout,
+  updateProfile,
 } from '@/api/auth'
 import { useAuthStore } from './auth'
 
@@ -23,6 +24,7 @@ vi.mock('@/api/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   register: vi.fn(),
+  updateProfile: vi.fn(),
 }))
 
 const mockedGetToken = vi.mocked(getStoredToken)
@@ -31,6 +33,7 @@ const mockedClearToken = vi.mocked(clearStoredToken)
 const mockedLogin = vi.mocked(login)
 const mockedLogout = vi.mocked(logout)
 const mockedFetchMe = vi.mocked(fetchMe)
+const mockedUpdateProfile = vi.mocked(updateProfile)
 
 const user = {
   id: 1,
@@ -78,6 +81,25 @@ describe('auth store', () => {
     expect(mockedLogout).toHaveBeenCalledOnce()
     expect(store.isAuthenticated).toBe(false)
     expect(mockedClearToken).toHaveBeenCalledOnce()
+  })
+
+  it('updates the authenticated user profile and avatar', async () => {
+    mockedLogin.mockResolvedValue({
+      token: 'jwt-token',
+      tokenType: 'Bearer',
+      expiresAt: '2026-11-25T01:00:00Z',
+      user,
+    })
+    const updatedUser = { ...user, nickname: '新的昵称', avatarFileId: 8 }
+    mockedUpdateProfile.mockResolvedValue(updatedUser)
+
+    const store = useAuthStore()
+    await store.login({ email: user.email, password: 'TestPassword123!' })
+    await store.updateProfile({ nickname: updatedUser.nickname, avatarFileId: 8 })
+
+    expect(mockedUpdateProfile).toHaveBeenCalledWith({ nickname: '新的昵称', avatarFileId: 8 })
+    expect(store.user).toEqual(updatedUser)
+    expect(store.loading).toBe(false)
   })
 
   it('drops an invalid persisted token during bootstrap', async () => {

@@ -2,8 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/home/HomeView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
-import SpaceView from '@/views/space/SpaceView.vue'
-import ComingSoonView from '@/views/ComingSoonView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -28,28 +26,14 @@ const router = createRouter({
       meta: { title: '注册 · Our Galaxy', public: true, guestOnly: true },
     },
     {
-      path: '/space',
-      name: 'space',
-      component: SpaceView,
-      meta: { title: '我们的空间 · Our Galaxy' },
-    },
-    {
       path: '/memories',
       name: 'memories',
       component: () => import('@/views/memories/MemoriesView.vue'),
       meta: { title: '共同回忆 · Our Galaxy' },
     },
     {
-      path: '/time-capsule',
-      name: 'time-capsule',
-      component: ComingSoonView,
-      meta: { title: 'Time Capsule · Our Galaxy', public: true },
-    },
-    {
-      path: '/ai-assistant',
-      name: 'ai-assistant',
-      component: ComingSoonView,
-      meta: { title: 'AI Love Assistant · Our Galaxy', public: true },
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
     },
   ],
 })
@@ -60,7 +44,7 @@ router.beforeEach(async (to) => {
   if (to.meta.public) {
     if (to.meta.guestOnly && auth.token) {
       await auth.bootstrap()
-      if (auth.isAuthenticated) return { name: 'space' }
+      if (auth.isAuthenticated) return { name: 'memories' }
     }
     return true
   }

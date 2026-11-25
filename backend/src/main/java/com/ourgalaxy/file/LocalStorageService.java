@@ -38,6 +38,14 @@ public class LocalStorageService {
     }
 
     public StoredFile store(MultipartFile multipartFile, Long coupleId) {
+        return store(multipartFile, String.valueOf(coupleId));
+    }
+
+    public StoredFile storePersonal(MultipartFile multipartFile, Long userId) {
+        return store(multipartFile, "avatars/" + userId);
+    }
+
+    private StoredFile store(MultipartFile multipartFile, String namespace) {
         if (multipartFile == null || multipartFile.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "请选择要上传的图片");
         }
@@ -54,7 +62,7 @@ public class LocalStorageService {
         };
         String mimeType = "image/" + extension;
         LocalDate date = LocalDate.now(ZoneOffset.UTC);
-        String storageKey = coupleId + "/" + date.getYear() + "/" + String.format("%02d", date.getMonthValue())
+        String storageKey = namespace + "/" + date.getYear() + "/" + String.format("%02d", date.getMonthValue())
                 + "/" + UUID.randomUUID() + "." + extension;
         Path target = root.resolve(storageKey).normalize();
         if (!target.startsWith(root)) {
