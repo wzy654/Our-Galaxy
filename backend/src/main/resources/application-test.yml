@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${TEST_DB_NAME:our_galaxy_test}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:our_galaxy}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${TEST_REDIS_DATABASE:15}
+  flyway:
+    enabled: true
+
+app:
+  file:
+    local-root: ${TEST_FILE_ROOT:./target/test-uploads}
